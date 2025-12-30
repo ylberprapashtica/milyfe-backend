@@ -1,0 +1,119 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: milyfe_backend_postgres
+    environment:
+      POSTGRES_DB: finances
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - backend_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: milyfe_backend_app
+    volumes:
+      - .:/app
+      - backend_vendor:/app/vendor
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: finances
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      XDEBUG_MODE: debug
+      XDEBUG_CONFIG: client_host=host.docker.internal client_port=9000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit((file_exists('/app/vendor/autoload.php') && file_exists('/app/bootstrap/app.php')) ? 0 : 1);"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - backend_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: milyfe_backend_nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - .:/app
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "pgrep nginx > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - backend_network
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: milyfe_backend_queue
+    command: sh -c "composer install --no-interaction --prefer-dist && php artisan queue:work --verbose --tries=3 --timeout=90"
+    volumes:
+      - .:/app
+      - backend_vendor:/app/vendor
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: finances
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      XDEBUG_MODE: debug
+      XDEBUG_CONFIG: client_host=host.docker.internal client_port=9001
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "php", "artisan", "queue:work", "--help"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - backend_network
+
+volumes:
+  postgres_data:
+  backend_vendor:
+
+networks:
+  backend_network:
+    driver: bridge
+
