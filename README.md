@@ -7,6 +7,40 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Milyfe Backend Microservice
+
+This is the backend microservice for the Milyfe application, built with Laravel.
+
+### Docker Compose
+
+This microservice includes its own `docker-compose.yml` file that can be used to run the backend independently:
+
+```bash
+docker-compose up -d
+```
+
+This will start:
+- **PostgreSQL**: Database service on port 5432
+- **Backend**: Laravel PHP-FPM service
+- **Nginx**: Web server on port 8080
+- **Queue Worker**: Background job processor
+
+### Services
+
+- **PostgreSQL**: `milyfe_backend_postgres` on port 5432
+- **Backend API**: Via Nginx at `milyfe_backend_nginx` on port 8080
+- **Queue Worker**: `milyfe_backend_queue`
+
+### Environment Variables
+
+Configure your environment in `.env`:
+- `DB_CONNECTION=pgsql`
+- `DB_HOST=postgres`
+- `DB_PORT=5432`
+- `DB_DATABASE=finances`
+- `DB_USERNAME=postgres`
+- `DB_PASSWORD=postgres`
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
