@@ -16,5 +16,14 @@ class Capture extends Model
      */
     protected $fillable = [
         'thought',
+        'user_id',
     ];
+
+    /**
+     * Get the user that owns the capture.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

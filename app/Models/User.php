@@ -42,4 +42,12 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /**
+     * Get the captures for the user.
+     */
+    public function captures()
+    {
+        return $this->hasMany(Capture::class);
+    }
 }

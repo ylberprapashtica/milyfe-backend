@@ -11,9 +11,9 @@ class CaptureController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $captures = Capture::all();
+        $captures = $request->user()->captures;
         return response()->json($captures);
     }
 
@@ -26,7 +26,7 @@ class CaptureController extends Controller
             'thought' => 'required|string',
         ]);
 
-        $capture = Capture::create($validated);
+        $capture = $request->user()->captures()->create($validated);
 
         return response()->json($capture, 201);
     }
@@ -34,9 +34,9 @@ class CaptureController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
-        $capture = Capture::findOrFail($id);
+        $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
         return response()->json($capture);
     }
 
@@ -49,7 +49,7 @@ class CaptureController extends Controller
             'thought' => 'required|string',
         ]);
 
-        $capture = Capture::findOrFail($id);
+        $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
         $capture->update($validated);
 
         return response()->json($capture);
@@ -58,9 +58,9 @@ class CaptureController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
-        $capture = Capture::findOrFail($id);
+        $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
         $capture->delete();
 
         return response()->json(null, 204);
