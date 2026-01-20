@@ -21,6 +21,8 @@ class Capture extends Model
         'slug',
         'tags',
         'user_id',
+        'graph_x',
+        'graph_y',
     ];
 
     /**
@@ -30,6 +32,8 @@ class Capture extends Model
      */
     protected $casts = [
         'tags' => 'array',
+        'graph_x' => 'decimal:2',
+        'graph_y' => 'decimal:2',
     ];
 
     /**

@@ -29,5 +29,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/captures/search', [CaptureController::class, 'search']);
     Route::get('/captures/graph', [CaptureController::class, 'graph']);
     Route::get('/captures/{id}/links', [CaptureController::class, 'links']);
+    Route::put('/captures/{id}/position', [CaptureController::class, 'updatePosition']);
     Route::apiResource('captures', CaptureController::class);
 });

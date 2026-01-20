@@ -119,6 +119,28 @@ class CaptureController extends Controller
     }
 
     /**
+     * Update the graph position of a capture.
+     */
+    public function updatePosition(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'x' => 'required|numeric',
+            'y' => 'required|numeric',
+        ]);
+
+        $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
+        $capture->update([
+            'graph_x' => $validated['x'],
+            'graph_y' => $validated['y'],
+        ]);
+
+        return response()->json([
+            'message' => 'Position updated successfully',
+            'capture' => $capture,
+        ]);
+    }
+
+    /**
      * Get graph data for visualization.
      */
     public function graph(Request $request): JsonResponse
@@ -136,6 +158,19 @@ class CaptureController extends Controller
             $nodeId = (string) $capture->id;
             $nodeMap[$capture->id] = $nodeId;
             
+            // Use saved position if available, otherwise generate default position
+            $position = [
+                'x' => ($index % 10) * 200,
+                'y' => floor($index / 10) * 200,
+            ];
+            
+            if ($capture->graph_x !== null && $capture->graph_y !== null) {
+                $position = [
+                    'x' => (float) $capture->graph_x,
+                    'y' => (float) $capture->graph_y,
+                ];
+            }
+            
             $nodes[] = [
                 'id' => $nodeId,
                 'data' => [
@@ -144,10 +179,7 @@ class CaptureController extends Controller
                     'captureId' => $capture->id,
                     'slug' => $capture->slug,
                 ],
-                'position' => [
-                    'x' => ($index % 10) * 200,
-                    'y' => floor($index / 10) * 200,
-                ],
+                'position' => $position,
             ];
         }
 
