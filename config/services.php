@@ -31,4 +31,20 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'ai' => [
+        'default_provider' => env('AI_PROVIDER', 'deepseek'),
+        
+        'deepseek' => [
+            'api_key' => env('DEEPSEEK_API_KEY'),
+            'api_url' => env('DEEPSEEK_API_URL', 'https://api.deepseek.com/v1'),
+            'model' => env('DEEPSEEK_MODEL', 'deepseek-chat'),
+        ],
+        
+        'openai' => [
+            'api_key' => env('OPENAI_API_KEY'),
+            'api_url' => env('OPENAI_API_URL', 'https://api.openai.com/v1'),
+            'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        ],
+    ],
+
 ];

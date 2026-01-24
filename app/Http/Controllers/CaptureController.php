@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateCaptureMetadata;
 use App\Models\Capture;
 use App\Models\NoteLink;
 use Illuminate\Http\Request;
@@ -34,6 +35,15 @@ class CaptureController extends Controller
         ]);
 
         $capture = $request->user()->captures()->create($validated);
+        
+        // Check if we need to generate metadata with AI
+        $needsTitle = empty($validated['title']);
+        $needsTags = empty($validated['tags']);
+        
+        if ($needsTitle || $needsTags) {
+            // Dispatch job to generate missing metadata asynchronously
+            GenerateCaptureMetadata::dispatch($capture, $needsTitle, $needsTags);
+        }
         
         // Load relationships
         $capture->load(['linksTo', 'linkedFrom']);
@@ -180,6 +190,7 @@ class CaptureController extends Controller
                     'captureId' => $capture->id,
                     'slug' => $capture->slug,
                     'content' => $capture->content,
+                    'updated_at' => $capture->updated_at,
                 ],
                 'position' => $position,
             ];
