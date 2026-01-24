@@ -179,6 +179,7 @@ class CaptureController extends Controller
                     'tags' => $capture->tags ?? [],
                     'captureId' => $capture->id,
                     'slug' => $capture->slug,
+                    'content' => $capture->content,
                 ],
                 'position' => $position,
             ];
