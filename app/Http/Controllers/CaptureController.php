@@ -40,6 +40,16 @@ class CaptureController extends Controller
         $needsTitle = empty($validated['title']);
         $needsTags = empty($validated['tags']);
         
+        // If title was not provided, it was auto-extracted from content
+        // We should still generate an AI title to improve it
+        if ($needsTitle) {
+            $extractedTitle = Capture::extractTitleFromContent($validated['content']);
+            // Check if the current title matches the auto-extracted one
+            if ($capture->title === $extractedTitle) {
+                $needsTitle = true;
+            }
+        }
+        
         if ($needsTitle || $needsTags) {
             // Dispatch job to generate missing metadata asynchronously
             GenerateCaptureMetadata::dispatch($capture, $needsTitle, $needsTags);
@@ -266,9 +276,13 @@ class CaptureController extends Controller
             ->first();
 
         if ($existingLink) {
+            // Reload the source capture with relationships
+            $sourceCapture->load(['linksTo', 'linkedFrom']);
+            
             return response()->json([
                 'message' => 'Link already exists.',
                 'link' => $existingLink,
+                'source_capture' => $sourceCapture,
             ], 200);
         }
 
@@ -278,9 +292,21 @@ class CaptureController extends Controller
             'target_capture_id' => $validated['target_capture_id'],
         ]);
 
+        // Add wiki-link to source capture's content if not already present
+        $wikiLink = "[[{$targetCapture->title}]]";
+        if (strpos($sourceCapture->content, $wikiLink) === false) {
+            // Append the wiki-link at the end of the content with a newline
+            $sourceCapture->content = rtrim($sourceCapture->content) . "\n" . $wikiLink;
+            $sourceCapture->save();
+        }
+
+        // Reload the source capture to get the updated data
+        $sourceCapture->load(['linksTo', 'linkedFrom']);
+
         return response()->json([
             'message' => 'Link created successfully.',
             'link' => $link,
+            'source_capture' => $sourceCapture,
         ], 201);
     }
 
