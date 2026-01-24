@@ -54,7 +54,7 @@ class Capture extends Model
             'note_links',
             'source_capture_id',
             'target_capture_id'
-        )->withTimestamps();
+        )->withTimestamps()->withPivot('id');
     }
 
     /**
