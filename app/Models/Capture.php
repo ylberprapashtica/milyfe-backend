@@ -23,6 +23,7 @@ class Capture extends Model
         'user_id',
         'graph_x',
         'graph_y',
+        'capture_type_id',
     ];
 
     /**
@@ -42,6 +43,14 @@ class Capture extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the capture type.
+     */
+    public function captureType()
+    {
+        return $this->belongsTo(CaptureType::class);
     }
 
     /**

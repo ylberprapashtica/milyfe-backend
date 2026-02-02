@@ -1,0 +1,31 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('captures', function (Blueprint $table) {
+            $table->foreignId('capture_type_id')->nullable()->after('tags')->constrained('capture_types')->onDelete('set null');
+            $table->index('capture_type_id');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('captures', function (Blueprint $table) {
+            $table->dropForeign(['capture_type_id']);
+            $table->dropIndex(['capture_type_id']);
+            $table->dropColumn('capture_type_id');
+        });
+    }
+};

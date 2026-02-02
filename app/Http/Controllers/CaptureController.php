@@ -16,7 +16,7 @@ class CaptureController extends Controller
     public function index(Request $request): JsonResponse
     {
         $captures = $request->user()->captures()
-            ->with(['linksTo', 'linkedFrom'])
+            ->with(['linksTo', 'linkedFrom', 'captureType'])
             ->orderBy('created_at', 'desc')
             ->get();
         return response()->json($captures);
@@ -32,6 +32,7 @@ class CaptureController extends Controller
             'title' => 'nullable|string|max:255',
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
+            'capture_type_id' => 'nullable|integer|exists:capture_types,id',
         ]);
 
         $capture = $request->user()->captures()->create($validated);
@@ -56,7 +57,7 @@ class CaptureController extends Controller
         }
         
         // Load relationships
-        $capture->load(['linksTo', 'linkedFrom']);
+        $capture->load(['linksTo', 'linkedFrom', 'captureType']);
 
         return response()->json($capture, 201);
     }
@@ -67,7 +68,7 @@ class CaptureController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $capture = Capture::where('user_id', $request->user()->id)
-            ->with(['linksTo', 'linkedFrom'])
+            ->with(['linksTo', 'linkedFrom', 'captureType'])
             ->findOrFail($id);
         return response()->json($capture);
     }
@@ -82,13 +83,14 @@ class CaptureController extends Controller
             'title' => 'nullable|string|max:255',
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
+            'capture_type_id' => 'nullable|integer|exists:capture_types,id',
         ]);
 
         $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
         $capture->update($validated);
         
         // Load relationships
-        $capture->load(['linksTo', 'linkedFrom']);
+        $capture->load(['linksTo', 'linkedFrom', 'captureType']);
 
         return response()->json($capture);
     }
@@ -120,7 +122,7 @@ class CaptureController extends Controller
                 $q->where('title', 'ilike', "%{$query}%")
                   ->orWhere('content', 'ilike', "%{$query}%");
             })
-            ->with(['linksTo', 'linkedFrom'])
+            ->with(['linksTo', 'linkedFrom', 'captureType'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -134,7 +136,7 @@ class CaptureController extends Controller
     {
         $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
         
-        $linkedNotes = $capture->linksTo()->with(['linksTo', 'linkedFrom'])->get();
+        $linkedNotes = $capture->linksTo()->with(['linksTo', 'linkedFrom', 'captureType'])->get();
         
         return response()->json($linkedNotes);
     }
@@ -167,7 +169,7 @@ class CaptureController extends Controller
     public function graph(Request $request): JsonResponse
     {
         $captures = Capture::where('user_id', $request->user()->id)
-            ->with(['linksTo'])
+            ->with(['linksTo', 'captureType'])
             ->get();
 
         $nodes = [];
@@ -201,6 +203,8 @@ class CaptureController extends Controller
                     'slug' => $capture->slug,
                     'content' => $capture->content,
                     'updated_at' => $capture->updated_at,
+                    'type' => $capture->captureType?->name,
+                    'typeSymbol' => $capture->captureType?->symbol,
                 ],
                 'position' => $position,
             ];
@@ -308,6 +312,15 @@ class CaptureController extends Controller
             'link' => $link,
             'source_capture' => $sourceCapture,
         ], 201);
+    }
+
+    /**
+     * Get all available capture types.
+     */
+    public function getTypes(): JsonResponse
+    {
+        $types = \App\Models\CaptureType::all();
+        return response()->json($types);
     }
 
     /**
