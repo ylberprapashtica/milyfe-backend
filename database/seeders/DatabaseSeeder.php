@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             CaptureTypeSeeder::class,
+            CaptureStatusSeeder::class,
         ]);
 
         // \App\Models\User::factory(10)->create();
