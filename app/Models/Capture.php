@@ -24,6 +24,7 @@ class Capture extends Model
         'graph_x',
         'graph_y',
         'capture_type_id',
+        'capture_status_id',
     ];
 
     /**
@@ -51,6 +52,14 @@ class Capture extends Model
     public function captureType()
     {
         return $this->belongsTo(CaptureType::class);
+    }
+
+    /**
+     * Get the capture status.
+     */
+    public function captureStatus()
+    {
+        return $this->belongsTo(CaptureStatus::class);
     }
 
     /**

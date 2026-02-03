@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\GenerateCaptureMetadata;
 use App\Models\Capture;
+use App\Models\CaptureStatus;
 use App\Models\NoteLink;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,7 @@ class CaptureController extends Controller
     public function index(Request $request): JsonResponse
     {
         $captures = $request->user()->captures()
-            ->with(['linksTo', 'linkedFrom', 'captureType'])
+            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus'])
             ->orderBy('created_at', 'desc')
             ->get();
         return response()->json($captures);
@@ -33,7 +34,16 @@ class CaptureController extends Controller
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
             'capture_type_id' => 'nullable|integer|exists:capture_types,id',
+            'capture_status_id' => 'nullable|integer|exists:capture_statuses,id',
         ]);
+
+        // Set default status to 'fleeting' if not provided
+        if (empty($validated['capture_status_id'])) {
+            $fleetingStatus = CaptureStatus::where('name', 'fleeting')->first();
+            if ($fleetingStatus) {
+                $validated['capture_status_id'] = $fleetingStatus->id;
+            }
+        }
 
         $capture = $request->user()->captures()->create($validated);
         
@@ -57,7 +67,7 @@ class CaptureController extends Controller
         }
         
         // Load relationships
-        $capture->load(['linksTo', 'linkedFrom', 'captureType']);
+        $capture->load(['linksTo', 'linkedFrom', 'captureType', 'captureStatus']);
 
         return response()->json($capture, 201);
     }
@@ -68,7 +78,7 @@ class CaptureController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $capture = Capture::where('user_id', $request->user()->id)
-            ->with(['linksTo', 'linkedFrom', 'captureType'])
+            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus'])
             ->findOrFail($id);
         return response()->json($capture);
     }
@@ -84,13 +94,14 @@ class CaptureController extends Controller
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
             'capture_type_id' => 'nullable|integer|exists:capture_types,id',
+            'capture_status_id' => 'nullable|integer|exists:capture_statuses,id',
         ]);
 
         $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
         $capture->update($validated);
         
         // Load relationships
-        $capture->load(['linksTo', 'linkedFrom', 'captureType']);
+        $capture->load(['linksTo', 'linkedFrom', 'captureType', 'captureStatus']);
 
         return response()->json($capture);
     }
@@ -122,7 +133,7 @@ class CaptureController extends Controller
                 $q->where('title', 'ilike', "%{$query}%")
                   ->orWhere('content', 'ilike', "%{$query}%");
             })
-            ->with(['linksTo', 'linkedFrom', 'captureType'])
+            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -136,7 +147,7 @@ class CaptureController extends Controller
     {
         $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
         
-        $linkedNotes = $capture->linksTo()->with(['linksTo', 'linkedFrom', 'captureType'])->get();
+        $linkedNotes = $capture->linksTo()->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus'])->get();
         
         return response()->json($linkedNotes);
     }
@@ -169,7 +180,7 @@ class CaptureController extends Controller
     public function graph(Request $request): JsonResponse
     {
         $captures = Capture::where('user_id', $request->user()->id)
-            ->with(['linksTo', 'captureType'])
+            ->with(['linksTo', 'captureType', 'captureStatus'])
             ->get();
 
         $nodes = [];
@@ -203,6 +214,8 @@ class CaptureController extends Controller
                     'slug' => $capture->slug,
                     'content' => $capture->content,
                     'updated_at' => $capture->updated_at,
+                    'status' => $capture->captureStatus?->name ?? 'fleeting',
+                    'statusColor' => $capture->captureStatus?->color,
                     'type' => $capture->captureType?->name,
                     'typeSymbol' => $capture->captureType?->symbol,
                 ],
@@ -321,6 +334,15 @@ class CaptureController extends Controller
     {
         $types = \App\Models\CaptureType::all();
         return response()->json($types);
+    }
+
+    /**
+     * Get all available capture statuses.
+     */
+    public function getStatuses(): JsonResponse
+    {
+        $statuses = CaptureStatus::all();
+        return response()->json($statuses);
     }
 
     /**
