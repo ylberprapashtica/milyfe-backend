@@ -36,6 +36,8 @@ class CaptureController extends Controller
             'capture_type_id' => 'nullable|integer|exists:capture_types,id',
             'capture_status_id' => 'nullable|integer|exists:capture_statuses,id',
             'sketch_image' => 'nullable|string',
+            'graph_x' => 'nullable|numeric',
+            'graph_y' => 'nullable|numeric',
         ]);
 
         // Set default status to 'fleeting' if not provided
@@ -46,20 +48,25 @@ class CaptureController extends Controller
             }
         }
 
-        // Compute initial graph position: bottom row, to the right of rightmost note
-        $positioned = Capture::where('user_id', $request->user()->id)
-            ->whereNotNull('graph_x')
-            ->whereNotNull('graph_y')
-            ->get();
-
-        if ($positioned->isEmpty()) {
-            $validated['graph_x'] = 0;
-            $validated['graph_y'] = 0;
+        // Use provided position or compute initial graph position: bottom row, to the right of rightmost note
+        if (isset($validated['graph_x']) && isset($validated['graph_y'])) {
+            $validated['graph_x'] = (float) $validated['graph_x'];
+            $validated['graph_y'] = (float) $validated['graph_y'];
         } else {
-            $maxY = $positioned->max('graph_y');
-            $maxXAtBottom = $positioned->where('graph_y', $maxY)->max('graph_x');
-            $validated['graph_x'] = (float) $maxXAtBottom + 200;
-            $validated['graph_y'] = (float) $maxY;
+            $positioned = Capture::where('user_id', $request->user()->id)
+                ->whereNotNull('graph_x')
+                ->whereNotNull('graph_y')
+                ->get();
+
+            if ($positioned->isEmpty()) {
+                $validated['graph_x'] = 0;
+                $validated['graph_y'] = 0;
+            } else {
+                $maxY = $positioned->max('graph_y');
+                $maxXAtBottom = $positioned->where('graph_y', $maxY)->max('graph_x');
+                $validated['graph_x'] = (float) $maxXAtBottom + 200;
+                $validated['graph_y'] = (float) $maxY;
+            }
         }
 
         $capture = $request->user()->captures()->create($validated);
