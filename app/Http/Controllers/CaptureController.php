@@ -35,6 +35,7 @@ class CaptureController extends Controller
             'tags.*' => 'string|max:50',
             'capture_type_id' => 'nullable|integer|exists:capture_types,id',
             'capture_status_id' => 'nullable|integer|exists:capture_statuses,id',
+            'sketch_image' => 'nullable|string',
         ]);
 
         // Set default status to 'fleeting' if not provided
@@ -95,6 +96,7 @@ class CaptureController extends Controller
             'tags.*' => 'string|max:50',
             'capture_type_id' => 'nullable|integer|exists:capture_types,id',
             'capture_status_id' => 'nullable|integer|exists:capture_statuses,id',
+            'sketch_image' => 'nullable|string',
         ]);
 
         $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);

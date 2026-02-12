@@ -25,6 +25,7 @@ class Capture extends Model
         'graph_y',
         'capture_type_id',
         'capture_status_id',
+        'sketch_image',
     ];
 
     /**
