@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Contracts\AiMetadataGenerator;
 use App\Models\Capture;
+use App\Models\Tag;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -70,24 +71,37 @@ class GenerateCaptureMetadata implements ShouldQueue
 
             if ($this->generateTitle && !empty($metadata['title'])) {
                 $updateData['title'] = $metadata['title'];
-                
-                // Also regenerate slug from the new title
                 $updateData['slug'] = Capture::generateSlug($metadata['title']);
             }
 
             if ($this->generateTags && !empty($metadata['tags'])) {
-                $updateData['tags'] = $metadata['tags'];
+                $tagNames = array_map(fn ($t) => is_string($t) ? strtolower(trim($t)) : null, $metadata['tags']);
+                $tagNames = array_filter(array_unique($tagNames));
+
+                // Only attach tags that already exist (AI must not create new tags)
+                $existingTagIds = Tag::where('user_id', $this->capture->user_id)
+                    ->whereIn('name', $tagNames)
+                    ->pluck('id')
+                    ->toArray();
+
+                $currentTagIds = $this->capture->tagRelations()->pluck('id')->toArray();
+                $mergedTagIds = array_values(array_unique(array_merge($currentTagIds, $existingTagIds)));
+                $this->capture->tagRelations()->sync($mergedTagIds);
             }
 
-            // Update the capture if we have data
-            if (!empty($updateData)) {
-                $this->capture->update($updateData);
+            if (isset($updateData['title'])) {
+                $this->capture->update([
+                    'title' => $updateData['title'],
+                    'slug' => $updateData['slug'],
+                ]);
+            }
 
+            $hasUpdates = !empty($updateData) || ($this->generateTags && !empty($metadata['tags'] ?? []));
+            if ($hasUpdates) {
                 Log::info('GenerateCaptureMetadata: Success', [
                     'capture_id' => $this->capture->id,
                     'updated_fields' => array_keys($updateData),
                     'title' => $updateData['title'] ?? null,
-                    'tags' => $updateData['tags'] ?? null,
                 ]);
             } else {
                 Log::warning('GenerateCaptureMetadata: No metadata generated', [

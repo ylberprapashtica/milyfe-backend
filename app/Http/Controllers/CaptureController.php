@@ -6,6 +6,7 @@ use App\Jobs\GenerateCaptureMetadata;
 use App\Models\Capture;
 use App\Models\CaptureStatus;
 use App\Models\NoteLink;
+use App\Models\Tag;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -17,7 +18,7 @@ class CaptureController extends Controller
     public function index(Request $request): JsonResponse
     {
         $captures = $request->user()->captures()
-            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus'])
+            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations'])
             ->orderBy('created_at', 'desc')
             ->get();
         return response()->json($captures);
@@ -70,11 +71,18 @@ class CaptureController extends Controller
             }
         }
 
+        // Extract tags before create - they are synced via relationship
+        $tagNames = $validated['tags'] ?? [];
+        unset($validated['tags']);
+
         $capture = $request->user()->captures()->create($validated);
-        
+
+        // Sync tags (findOrCreate for manual user input)
+        $this->syncCaptureTags($capture, $tagNames, $request->user()->id);
+
         // Check if we need to generate metadata with AI
         $needsTitle = empty($validated['title']);
-        $needsTags = empty($validated['tags']);
+        $needsTags = empty($tagNames);
         
         // If title was not provided, it was auto-extracted from content
         // We should still generate an AI title to improve it
@@ -92,7 +100,7 @@ class CaptureController extends Controller
         }
         
         // Load relationships
-        $capture->load(['linksTo', 'linkedFrom', 'captureType', 'captureStatus']);
+        $capture->load(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations']);
 
         return response()->json($capture, 201);
     }
@@ -103,7 +111,7 @@ class CaptureController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $capture = Capture::where('user_id', $request->user()->id)
-            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus'])
+            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations'])
             ->findOrFail($id);
         return response()->json($capture);
     }
@@ -125,12 +133,38 @@ class CaptureController extends Controller
         ]);
 
         $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
+
+        // Extract tags before update - they are synced via relationship
+        $tagNames = $validated['tags'] ?? [];
+        unset($validated['tags']);
+
         $capture->update($validated);
-        
+        $this->syncCaptureTags($capture, $tagNames, $request->user()->id);
+
         // Load relationships
-        $capture->load(['linksTo', 'linkedFrom', 'captureType', 'captureStatus']);
+        $capture->load(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations']);
 
         return response()->json($capture);
+    }
+
+    /**
+     * Sync capture tags from tag names (findOrCreate for manual input).
+     */
+    private function syncCaptureTags(Capture $capture, array $tagNames, int $userId): void
+    {
+        $tagIds = [];
+        foreach ($tagNames as $name) {
+            $name = strtolower(trim(mb_substr((string) $name, 0, 50)));
+            if ($name === '') {
+                continue;
+            }
+            $tag = Tag::firstOrCreate(
+                ['user_id' => $userId, 'name' => $name],
+                ['user_id' => $userId, 'name' => $name]
+            );
+            $tagIds[] = $tag->id;
+        }
+        $capture->tagRelations()->sync($tagIds);
     }
 
     /**
@@ -160,7 +194,7 @@ class CaptureController extends Controller
                 $q->where('title', 'ilike', "%{$query}%")
                   ->orWhere('content', 'ilike', "%{$query}%");
             })
-            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus'])
+            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -174,7 +208,7 @@ class CaptureController extends Controller
     {
         $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
         
-        $linkedNotes = $capture->linksTo()->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus'])->get();
+        $linkedNotes = $capture->linksTo()->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations'])->get();
         
         return response()->json($linkedNotes);
     }
@@ -207,7 +241,7 @@ class CaptureController extends Controller
     public function graph(Request $request): JsonResponse
     {
         $captures = Capture::where('user_id', $request->user()->id)
-            ->with(['linksTo', 'captureType', 'captureStatus'])
+            ->with(['linksTo', 'captureType', 'captureStatus', 'tagRelations'])
             ->get();
 
         $nodes = [];
@@ -370,6 +404,17 @@ class CaptureController extends Controller
     {
         $statuses = CaptureStatus::all();
         return response()->json($statuses);
+    }
+
+    /**
+     * Get all tags for the authenticated user.
+     */
+    public function getTags(Request $request): JsonResponse
+    {
+        $tags = Tag::where('user_id', $request->user()->id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        return response()->json($tags);
     }
 
     /**

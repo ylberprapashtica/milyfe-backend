@@ -28,6 +28,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/captures/types', [CaptureController::class, 'getTypes']);
     Route::get('/captures/statuses', [CaptureController::class, 'getStatuses']);
+    Route::get('/captures/tags', [CaptureController::class, 'getTags']);
     Route::get('/captures/search', [CaptureController::class, 'search']);
     Route::get('/captures/graph', [CaptureController::class, 'graph']);
     Route::get('/captures/{id}/links', [CaptureController::class, 'links']);

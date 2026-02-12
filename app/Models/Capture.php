@@ -19,7 +19,6 @@ class Capture extends Model
         'content',
         'title',
         'slug',
-        'tags',
         'user_id',
         'graph_x',
         'graph_y',
@@ -35,9 +34,17 @@ class Capture extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'tags' => 'array',
         'graph_x' => 'decimal:2',
         'graph_y' => 'decimal:2',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'tag_relations',
     ];
 
     /**
@@ -75,6 +82,22 @@ class Capture extends Model
             'source_capture_id',
             'target_capture_id'
         )->withTimestamps()->withPivot('id');
+    }
+
+    /**
+     * Get the tags for this capture (relationship).
+     */
+    public function tagRelations()
+    {
+        return $this->belongsToMany(Tag::class, 'capture_tag')->withTimestamps();
+    }
+
+    /**
+     * Get tags as array of names (for API backward compatibility).
+     */
+    public function getTagsAttribute(): array
+    {
+        return $this->tagRelations->pluck('name')->values()->toArray();
     }
 
     /**
