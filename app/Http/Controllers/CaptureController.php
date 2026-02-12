@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\AiProjectSuggester;
 use App\Jobs\GenerateCaptureMetadata;
 use App\Models\Capture;
 use App\Models\CaptureStatus;
 use App\Models\NoteLink;
+use App\Models\Project;
 use App\Models\Tag;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +20,7 @@ class CaptureController extends Controller
     public function index(Request $request): JsonResponse
     {
         $captures = $request->user()->captures()
-            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations'])
+            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations', 'project'])
             ->orderBy('created_at', 'desc')
             ->get();
         return response()->json($captures);
@@ -34,6 +36,7 @@ class CaptureController extends Controller
             'title' => 'nullable|string|max:255',
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
+            'project_id' => 'nullable|integer|exists:projects,id',
             'capture_type_id' => 'nullable|integer|exists:capture_types,id',
             'capture_status_id' => 'nullable|integer|exists:capture_statuses,id',
             'sketch_image' => 'nullable|string',
@@ -41,6 +44,16 @@ class CaptureController extends Controller
             'graph_x' => 'nullable|numeric',
             'graph_y' => 'nullable|numeric',
         ]);
+
+        // Validate project_id belongs to user if provided
+        if (!empty($validated['project_id'])) {
+            $project = Project::where('id', $validated['project_id'])
+                ->where('user_id', $request->user()->id)
+                ->first();
+            if (!$project) {
+                unset($validated['project_id']);
+            }
+        }
 
         // Set default status to 'fleeting' if not provided
         if (empty($validated['capture_status_id'])) {
@@ -77,6 +90,20 @@ class CaptureController extends Controller
 
         $capture = $request->user()->captures()->create($validated);
 
+        // AI project suggestion: if user did not select a project, try to suggest one
+        if (empty($validated['project_id'])) {
+            $projects = $request->user()->projects()
+                ->get(['id', 'name', 'description'])
+                ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'description' => $p->description])
+                ->toArray();
+            if (!empty($projects)) {
+                $suggestion = app(AiProjectSuggester::class)->suggestProject($validated['content'], $projects);
+                if ($suggestion && $suggestion['confidence'] >= 80 && isset($suggestion['project_id'])) {
+                    $capture->update(['project_id' => $suggestion['project_id']]);
+                }
+            }
+        }
+
         // Sync tags (findOrCreate for manual user input)
         $this->syncCaptureTags($capture, $tagNames, $request->user()->id);
 
@@ -100,7 +127,7 @@ class CaptureController extends Controller
         }
         
         // Load relationships
-        $capture->load(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations']);
+        $capture->load(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations', 'project']);
 
         return response()->json($capture, 201);
     }
@@ -111,7 +138,7 @@ class CaptureController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $capture = Capture::where('user_id', $request->user()->id)
-            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations'])
+            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations', 'project'])
             ->findOrFail($id);
         return response()->json($capture);
     }
@@ -126,11 +153,24 @@ class CaptureController extends Controller
             'title' => 'nullable|string|max:255',
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
+            'project_id' => 'nullable|integer|exists:projects,id',
             'capture_type_id' => 'nullable|integer|exists:capture_types,id',
             'capture_status_id' => 'nullable|integer|exists:capture_statuses,id',
             'sketch_image' => 'nullable|string',
             'voice_audio' => 'nullable|string|max:2800000',
         ]);
+
+        // Validate project_id belongs to user if provided
+        if (isset($validated['project_id']) && $validated['project_id'] !== null) {
+            $project = Project::where('id', $validated['project_id'])
+                ->where('user_id', $request->user()->id)
+                ->first();
+            if (!$project) {
+                $validated['project_id'] = null;
+            }
+        } elseif (array_key_exists('project_id', $validated) && $validated['project_id'] === null) {
+            // Explicitly unassign project
+        }
 
         $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
 
@@ -142,7 +182,7 @@ class CaptureController extends Controller
         $this->syncCaptureTags($capture, $tagNames, $request->user()->id);
 
         // Load relationships
-        $capture->load(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations']);
+        $capture->load(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations', 'project']);
 
         return response()->json($capture);
     }
@@ -194,7 +234,7 @@ class CaptureController extends Controller
                 $q->where('title', 'ilike', "%{$query}%")
                   ->orWhere('content', 'ilike', "%{$query}%");
             })
-            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations'])
+            ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations', 'project'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -236,12 +276,34 @@ class CaptureController extends Controller
     }
 
     /**
+     * Update the project position of a capture (for project view).
+     */
+    public function updateProjectPosition(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'x' => 'required|numeric',
+            'y' => 'required|numeric',
+        ]);
+
+        $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);
+        $capture->update([
+            'project_x' => $validated['x'],
+            'project_y' => $validated['y'],
+        ]);
+
+        return response()->json([
+            'message' => 'Project position updated successfully',
+            'capture' => $capture,
+        ]);
+    }
+
+    /**
      * Get graph data for visualization.
      */
     public function graph(Request $request): JsonResponse
     {
         $captures = Capture::where('user_id', $request->user()->id)
-            ->with(['linksTo', 'captureType', 'captureStatus', 'tagRelations'])
+            ->with(['linksTo', 'captureType', 'captureStatus', 'tagRelations', 'project'])
             ->get();
 
         $nodes = [];
@@ -279,6 +341,10 @@ class CaptureController extends Controller
                     'statusColor' => $capture->captureStatus?->color,
                     'type' => $capture->captureType?->name,
                     'typeSymbol' => $capture->captureType?->symbol,
+                    'project_id' => $capture->project_id,
+                    'project' => $capture->project ? ['id' => $capture->project->id, 'name' => $capture->project->name] : null,
+                    'project_x' => $capture->project_x !== null ? (float) $capture->project_x : null,
+                    'project_y' => $capture->project_y !== null ? (float) $capture->project_y : null,
                 ],
                 'position' => $position,
             ];

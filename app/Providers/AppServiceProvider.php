@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Contracts\AiMetadataGenerator;
+use App\Contracts\AiProjectSuggester;
 use App\Services\Ai\DeepSeekMetadataGenerator;
+use App\Services\Ai\DeepSeekProjectSuggester;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,6 +25,15 @@ class AppServiceProvider extends ServiceProvider
                 // 'openai' => new OpenAiMetadataGenerator(),
                 // 'claude' => new ClaudeMetadataGenerator(),
                 default => new DeepSeekMetadataGenerator(),
+            };
+        });
+
+        $this->app->bind(AiProjectSuggester::class, function ($app) {
+            $provider = config('services.ai.default_provider', 'deepseek');
+
+            return match ($provider) {
+                'deepseek' => new DeepSeekProjectSuggester(),
+                default => new DeepSeekProjectSuggester(),
             };
         });
     }

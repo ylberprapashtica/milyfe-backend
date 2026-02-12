@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CaptureController;
+use App\Http\Controllers\ProjectController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +27,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('projects', ProjectController::class);
     Route::get('/captures/types', [CaptureController::class, 'getTypes']);
     Route::get('/captures/statuses', [CaptureController::class, 'getStatuses']);
     Route::get('/captures/tags', [CaptureController::class, 'getTags']);
@@ -33,6 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/captures/graph', [CaptureController::class, 'graph']);
     Route::get('/captures/{id}/links', [CaptureController::class, 'links']);
     Route::put('/captures/{id}/position', [CaptureController::class, 'updatePosition']);
+    Route::put('/captures/{id}/project-position', [CaptureController::class, 'updateProjectPosition']);
     Route::post('/captures/links', [CaptureController::class, 'createLink']);
     Route::delete('/captures/links/{linkId}', [CaptureController::class, 'deleteLink']);
     Route::apiResource('captures', CaptureController::class);

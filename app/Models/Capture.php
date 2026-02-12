@@ -22,6 +22,9 @@ class Capture extends Model
         'user_id',
         'graph_x',
         'graph_y',
+        'project_id',
+        'project_x',
+        'project_y',
         'capture_type_id',
         'capture_status_id',
         'sketch_image',
@@ -36,6 +39,8 @@ class Capture extends Model
     protected $casts = [
         'graph_x' => 'decimal:2',
         'graph_y' => 'decimal:2',
+        'project_x' => 'decimal:2',
+        'project_y' => 'decimal:2',
     ];
 
     /**
@@ -78,6 +83,14 @@ class Capture extends Model
     public function captureStatus()
     {
         return $this->belongsTo(CaptureStatus::class);
+    }
+
+    /**
+     * Get the project this capture belongs to.
+     */
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
     }
 
     /**
