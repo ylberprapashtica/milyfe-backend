@@ -36,6 +36,7 @@ class CaptureController extends Controller
             'capture_type_id' => 'nullable|integer|exists:capture_types,id',
             'capture_status_id' => 'nullable|integer|exists:capture_statuses,id',
             'sketch_image' => 'nullable|string',
+            'voice_audio' => 'nullable|string|max:2800000',
             'graph_x' => 'nullable|numeric',
             'graph_y' => 'nullable|numeric',
         ]);
@@ -120,6 +121,7 @@ class CaptureController extends Controller
             'capture_type_id' => 'nullable|integer|exists:capture_types,id',
             'capture_status_id' => 'nullable|integer|exists:capture_statuses,id',
             'sketch_image' => 'nullable|string',
+            'voice_audio' => 'nullable|string|max:2800000',
         ]);
 
         $capture = Capture::where('user_id', $request->user()->id)->findOrFail($id);

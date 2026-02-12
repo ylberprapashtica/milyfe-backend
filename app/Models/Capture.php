@@ -26,6 +26,7 @@ class Capture extends Model
         'capture_type_id',
         'capture_status_id',
         'sketch_image',
+        'voice_audio',
     ];
 
     /**
