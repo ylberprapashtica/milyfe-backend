@@ -19,10 +19,11 @@ class CaptureTypeSeeder extends Seeder
             ['name' => 'action', 'symbol' => '0'],
             ['name' => 'planning', 'symbol' => '>'],
             ['name' => 'dreaming', 'symbol' => '>>'],
+            ['name' => 'eureka', 'symbol' => '!'],
         ];
 
         foreach ($types as $type) {
-            CaptureType::firstOrCreate(
+            CaptureType::updateOrCreate(
                 ['name' => $type['name']],
                 ['symbol' => $type['symbol']]
             );
