@@ -14,18 +14,18 @@ class CaptureTypeSeeder extends Seeder
     public function run(): void
     {
         $types = [
-            ['name' => 'memory', 'symbol' => '<<'],
-            ['name' => 'describing', 'symbol' => '<'],
-            ['name' => 'action', 'symbol' => '0'],
-            ['name' => 'planning', 'symbol' => '>'],
-            ['name' => 'dreaming', 'symbol' => '>>'],
-            ['name' => 'eureka', 'symbol' => '!'],
+            ['name' => 'memory', 'symbol' => '<<', 'description' => 'Past experiences, recollections, things remembered'],
+            ['name' => 'describing', 'symbol' => '<', 'description' => 'Current observations, what is happening now'],
+            ['name' => 'action', 'symbol' => '0', 'description' => 'Tasks, things to do, immediate actions'],
+            ['name' => 'planning', 'symbol' => '>', 'description' => 'Future plans, intentions, how to achieve goals'],
+            ['name' => 'dreaming', 'symbol' => '>>', 'description' => 'Aspirations, big ideas, long-term visions'],
+            ['name' => 'eureka', 'symbol' => '!', 'description' => 'Insights, breakthroughs, sudden realizations'],
         ];
 
         foreach ($types as $type) {
             CaptureType::updateOrCreate(
                 ['name' => $type['name']],
-                ['symbol' => $type['symbol']]
+                ['symbol' => $type['symbol'], 'description' => $type['description']]
             );
         }
     }

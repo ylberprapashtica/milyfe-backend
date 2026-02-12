@@ -17,6 +17,7 @@ class CaptureType extends Model
     protected $fillable = [
         'name',
         'symbol',
+        'description',
     ];
 
     /**

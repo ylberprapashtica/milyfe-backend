@@ -110,6 +110,7 @@ class CaptureController extends Controller
         // Check if we need to generate metadata with AI
         $needsTitle = empty($validated['title']);
         $needsTags = empty($tagNames);
+        $needsType = empty($validated['capture_type_id']);
         
         // If title was not provided, it was auto-extracted from content
         // We should still generate an AI title to improve it
@@ -121,9 +122,9 @@ class CaptureController extends Controller
             }
         }
         
-        if ($needsTitle || $needsTags) {
-            // Dispatch job to generate missing metadata asynchronously
-            GenerateCaptureMetadata::dispatch($capture, $needsTitle, $needsTags);
+        if ($needsTitle || $needsTags || $needsType) {
+            // Dispatch job to generate missing metadata asynchronously (title, tags, type)
+            GenerateCaptureMetadata::dispatch($capture, $needsTitle, $needsTags, $needsType);
         }
         
         // Load relationships

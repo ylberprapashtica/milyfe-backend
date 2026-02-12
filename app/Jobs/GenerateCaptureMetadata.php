@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Contracts\AiMetadataGenerator;
 use App\Models\Capture;
+use App\Models\CaptureType;
 use App\Models\Tag;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -38,7 +39,8 @@ class GenerateCaptureMetadata implements ShouldQueue
     public function __construct(
         public Capture $capture,
         public bool $generateTitle = false,
-        public bool $generateTags = false
+        public bool $generateTags = false,
+        public bool $generateType = false
     ) {
         //
     }
@@ -49,7 +51,7 @@ class GenerateCaptureMetadata implements ShouldQueue
     public function handle(AiMetadataGenerator $generator): void
     {
         // Skip if nothing to generate
-        if (!$this->generateTitle && !$this->generateTags) {
+        if (!$this->generateTitle && !$this->generateTags && !$this->generateType) {
             Log::info('GenerateCaptureMetadata: Nothing to generate', [
                 'capture_id' => $this->capture->id,
             ]);
@@ -61,10 +63,16 @@ class GenerateCaptureMetadata implements ShouldQueue
                 'capture_id' => $this->capture->id,
                 'generate_title' => $this->generateTitle,
                 'generate_tags' => $this->generateTags,
+                'generate_type' => $this->generateType,
             ]);
 
+            $captureTypes = null;
+            if ($this->generateType && strlen(trim($this->capture->content)) >= 10) {
+                $captureTypes = CaptureType::all(['id', 'name', 'symbol', 'description'])->toArray();
+            }
+
             // Call the AI to generate metadata
-            $metadata = $generator->generateMetadata($this->capture->content);
+            $metadata = $generator->generateMetadata($this->capture->content, $captureTypes);
 
             // Prepare update data
             $updateData = [];
@@ -84,16 +92,22 @@ class GenerateCaptureMetadata implements ShouldQueue
                     ->pluck('id')
                     ->toArray();
 
-                $currentTagIds = $this->capture->tagRelations()->pluck('id')->toArray();
+                $currentTagIds = $this->capture->tagRelations()->get()->pluck('id')->toArray();
                 $mergedTagIds = array_values(array_unique(array_merge($currentTagIds, $existingTagIds)));
                 $this->capture->tagRelations()->sync($mergedTagIds);
             }
 
-            if (isset($updateData['title'])) {
-                $this->capture->update([
-                    'title' => $updateData['title'],
-                    'slug' => $updateData['slug'],
-                ]);
+            if ($this->generateType && array_key_exists('capture_type_id', $metadata) && $metadata['capture_type_id'] !== null) {
+                $updateData['capture_type_id'] = $metadata['capture_type_id'];
+            }
+
+            // Only update actual capture table columns (never 'tags' - those are synced via tagRelations above).
+            // Use a direct query so the Capture model cannot inject virtual attributes (e.g. appended 'tags') into the update.
+            $allowedColumns = ['title', 'slug', 'capture_type_id'];
+            $updateData = array_intersect_key($updateData, array_flip($allowedColumns));
+
+            if (!empty($updateData)) {
+                Capture::where('id', $this->capture->id)->update($updateData);
             }
 
             $hasUpdates = !empty($updateData) || ($this->generateTags && !empty($metadata['tags'] ?? []));

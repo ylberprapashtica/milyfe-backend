@@ -11,15 +11,17 @@ namespace App\Contracts;
 interface AiMetadataGenerator
 {
     /**
-     * Generate metadata (title and tags) from content
-     * 
+     * Generate metadata (title, tags, and optionally type) from content
+     *
      * Takes the capture content and uses AI to generate:
      * - A concise, descriptive title
      * - Relevant tags for categorization
-     * 
+     * - When $captureTypes is provided: the single best-fitting capture type
+     *
      * @param string $content The content to analyze
-     * @return array{title: string, tags: array<string>} Array with 'title' (string) and 'tags' (array of strings)
+     * @param array<int, array{id: int, name: string, symbol: string, description: string|null}>|null $captureTypes Optional list of capture types (id, name, symbol, description) for classification
+     * @return array{title: string, tags: array<string>, capture_type_id?: int|null}
      * @throws \Exception If the AI provider fails to generate metadata
      */
-    public function generateMetadata(string $content): array;
+    public function generateMetadata(string $content, ?array $captureTypes = null): array;
 }
