@@ -48,6 +48,15 @@ class Capture extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form (e.g. for API responses).
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'tags',
+    ];
+
+    /**
      * Get the user that owns the capture.
      */
     public function user()
