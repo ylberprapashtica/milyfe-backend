@@ -46,6 +46,22 @@ class CaptureController extends Controller
             }
         }
 
+        // Compute initial graph position: bottom row, to the right of rightmost note
+        $positioned = Capture::where('user_id', $request->user()->id)
+            ->whereNotNull('graph_x')
+            ->whereNotNull('graph_y')
+            ->get();
+
+        if ($positioned->isEmpty()) {
+            $validated['graph_x'] = 0;
+            $validated['graph_y'] = 0;
+        } else {
+            $maxY = $positioned->max('graph_y');
+            $maxXAtBottom = $positioned->where('graph_y', $maxY)->max('graph_x');
+            $validated['graph_x'] = (float) $maxXAtBottom + 200;
+            $validated['graph_y'] = (float) $maxY;
+        }
+
         $capture = $request->user()->captures()->create($validated);
         
         // Check if we need to generate metadata with AI
