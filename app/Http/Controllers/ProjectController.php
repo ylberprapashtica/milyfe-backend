@@ -84,6 +84,42 @@ class ProjectController extends Controller
     }
 
     /**
+     * Update graph layouts for multiple projects in one request.
+     * Body: { "layouts": { "1": { "x", "y", "width", "height" }, "7": { ... } } }
+     */
+    public function updateLayouts(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'layouts' => 'required|array',
+            'layouts.*' => 'array',
+            'layouts.*.x' => 'required|numeric',
+            'layouts.*.y' => 'required|numeric',
+            'layouts.*.width' => 'required|numeric',
+            'layouts.*.height' => 'required|numeric',
+        ]);
+
+        $user = $request->user();
+        $ids = array_map('intval', array_keys($validated['layouts']));
+        $projects = Project::where('user_id', $user->id)->whereIn('id', $ids)->get()->keyBy('id');
+
+        foreach ($validated['layouts'] as $idStr => $layout) {
+            $id = (int) $idStr;
+            $project = $projects->get($id);
+            if ($project) {
+                $project->update([
+                    'graph_x' => $layout['x'],
+                    'graph_y' => $layout['y'],
+                    'graph_width' => $layout['width'],
+                    'graph_height' => $layout['height'],
+                ]);
+            }
+        }
+
+        $updated = $user->projects()->whereIn('id', $ids)->get();
+        return response()->json($updated);
+    }
+
+    /**
      * Remove the specified project.
      */
     public function destroy(Request $request, string $id): JsonResponse

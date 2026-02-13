@@ -16,13 +16,32 @@ class CaptureController extends Controller
 {
     /**
      * Display a listing of the resource.
+     * Optional query: page, per_page (default 50). If omitted, returns all captures.
      */
     public function index(Request $request): JsonResponse
     {
-        $captures = $request->user()->captures()
+        $query = $request->user()->captures()
             ->with(['linksTo', 'linkedFrom', 'captureType', 'captureStatus', 'tagRelations', 'project'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderBy('created_at', 'desc');
+
+        $page = $request->query('page');
+        $perPage = (int) $request->query('per_page', 50);
+        $perPage = $perPage >= 1 && $perPage <= 100 ? $perPage : 50;
+
+        if ($page !== null && $page !== '') {
+            $paginated = $query->paginate($perPage);
+            return response()->json([
+                'data' => $paginated->items(),
+                'meta' => [
+                    'current_page' => $paginated->currentPage(),
+                    'last_page' => $paginated->lastPage(),
+                    'per_page' => $paginated->perPage(),
+                    'total' => $paginated->total(),
+                ],
+            ]);
+        }
+
+        $captures = $query->get();
         return response()->json($captures);
     }
 
