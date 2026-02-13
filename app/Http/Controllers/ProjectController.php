@@ -61,6 +61,29 @@ class ProjectController extends Controller
     }
 
     /**
+     * Update the graph layout of the specified project (position and dimensions).
+     */
+    public function updateLayout(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'x' => 'required|numeric',
+            'y' => 'required|numeric',
+            'width' => 'required|numeric',
+            'height' => 'required|numeric',
+        ]);
+
+        $project = Project::where('user_id', $request->user()->id)->findOrFail($id);
+        $project->update([
+            'graph_x' => $validated['x'],
+            'graph_y' => $validated['y'],
+            'graph_width' => $validated['width'],
+            'graph_height' => $validated['height'],
+        ]);
+
+        return response()->json($project);
+    }
+
+    /**
      * Remove the specified project.
      */
     public function destroy(Request $request, string $id): JsonResponse

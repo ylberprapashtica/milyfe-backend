@@ -18,6 +18,22 @@ class Project extends Model
         'user_id',
         'name',
         'description',
+        'graph_x',
+        'graph_y',
+        'graph_width',
+        'graph_height',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'graph_x' => 'decimal:2',
+        'graph_y' => 'decimal:2',
+        'graph_width' => 'decimal:2',
+        'graph_height' => 'decimal:2',
     ];
 
     /**

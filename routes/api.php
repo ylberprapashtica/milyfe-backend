@@ -27,6 +27,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::put('/projects/{id}/layout', [ProjectController::class, 'updateLayout']);
     Route::apiResource('projects', ProjectController::class);
     Route::get('/captures/types', [CaptureController::class, 'getTypes']);
     Route::get('/captures/statuses', [CaptureController::class, 'getStatuses']);

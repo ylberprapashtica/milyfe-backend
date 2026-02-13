@@ -371,9 +371,25 @@ class CaptureController extends Controller
             }
         }
 
+        // Build project_layouts for projects that have captures in this result set
+        $projectIds = $captures->pluck('project_id')->filter()->unique()->values()->all();
+        $projects = $projectIds
+            ? Project::where('user_id', $request->user()->id)->whereIn('id', $projectIds)->get()
+            : collect();
+        $projectLayouts = [];
+        foreach ($projects as $project) {
+            $projectLayouts[(string) $project->id] = [
+                'x' => $project->graph_x !== null ? (float) $project->graph_x : null,
+                'y' => $project->graph_y !== null ? (float) $project->graph_y : null,
+                'width' => $project->graph_width !== null ? (float) $project->graph_width : null,
+                'height' => $project->graph_height !== null ? (float) $project->graph_height : null,
+            ];
+        }
+
         return response()->json([
             'nodes' => $nodes,
             'edges' => $edges,
+            'project_layouts' => $projectLayouts,
         ]);
     }
 
